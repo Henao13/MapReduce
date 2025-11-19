@@ -33,7 +33,7 @@ class AnalisisAccidentes(MRJob):
 
         try:
             row = next(csv.reader([line]))
-            
+
             if len(row) >= 15:
                 dia = row[3].strip().upper()       # Col 3: DIA
                 gravedad = row[10].strip().upper() # Col 10: GRAVEDAD
@@ -42,7 +42,7 @@ class AnalisisAccidentes(MRJob):
                 if dia: yield f"DIA_{dia}", 1
                 if gravedad: yield f"GRAVEDAD_{gravedad}", 1
                 if barrio and barrio != "SIN BARRIO": yield f"BARRIO_{barrio}", 1
-                    
+
         except Exception:
             pass
 
@@ -59,7 +59,7 @@ def cargar_datos_a_hdfs():
 if __name__ == '__main__':
     args = sys.argv
     es_worker = any(arg.startswith('--') for arg in args)
-    
+
     if not es_worker:
         if os.path.exists(ARCHIVO_LOCAL):
             cargar_datos_a_hdfs()
