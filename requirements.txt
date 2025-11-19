@@ -1,0 +1,4 @@
+mrjob
+fastapi
+uvicorn
+setuptools
