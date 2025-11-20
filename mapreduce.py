@@ -2,68 +2,70 @@ import sys
 import shlex
 import os
 
-# --- ZONA DE PARCHES PARA PYTHON 3.12 Y 3.13 ---
-# 1. Parche para 'distutils' (Eliminado en Python 3.12)
-# Intentamos importar setuptools que trae un reemplazo de distutils
+# Parche de compatibilidad para Python 3.12+ y 3.13+
 try:
     import setuptools
 except ImportError:
-    pass # Si falla, el usuario debe correr: pip install setuptools
+    pass 
 
-# 2. Parche para 'pipes' (Eliminado en Python 3.13)
 if sys.version_info >= (3, 13):
     sys.modules['pipes'] = shlex
-# -----------------------------------------------
 
 from mrjob.job import MRJob
 from mrjob.step import MRStep
 import csv
 import subprocess
 
-# --- CONFIGURACIÓN ---
-ARCHIVO_LOCAL = 'data/Accidentalidad_Municipio_de__Envigado_20251119.csv'
-RUTA_INPUT_HDFS = '/user/estudiante/proyecto3/input/'
+
+ARCHIVO_INPUT = 's3://trabajo-tres-mapreduce/data/Accidentalidad_Municipio_de__Envigado_20251119.csv'
+RUTA_OUTPUT_S3 = 's3://trabajo-tres-mapreduce/output'
 
 class AnalisisAccidentes(MRJob):
 
     def mapper(self, _, line):
-        # Ignorar encabezados
         if "RADICADO" in line and "BARRIO" in line:
             return
 
         try:
             row = next(csv.reader([line]))
-
+            
             if len(row) >= 15:
-                dia = row[3].strip().upper()       # Col 3: DIA
-                gravedad = row[10].strip().upper() # Col 10: GRAVEDAD
-                barrio = row[14].strip().upper()   # Col 14: BARRIO
+                dia = row[3].strip().upper()
+                gravedad = row[10].strip().upper()
+                barrio = row[14].strip().upper()
 
-                if dia: yield f"DIA_{dia}", 1
-                if gravedad: yield f"GRAVEDAD_{gravedad}", 1
-                if barrio and barrio != "SIN BARRIO": yield f"BARRIO_{barrio}", 1
-
+                if dia: 
+                    yield f"DIA_{dia}", 1
+                if gravedad: 
+                    yield f"GRAVEDAD_{gravedad}", 1
+                if barrio and barrio != "SIN BARRIO": 
+                    yield f"BARRIO_{barrio}", 1
+                    
+                    
         except Exception:
             pass
 
     def reducer(self, key, values):
         yield key, sum(values)
 
-def cargar_datos_a_hdfs():
-    print(f"--- Iniciando carga de {ARCHIVO_LOCAL} a HDFS ---")
-    # Crear directorio
-    subprocess.run(f"hdfs dfs -mkdir -p {RUTA_INPUT_HDFS}", shell=True)
-    # Subir archivo
-    subprocess.run(f'hdfs dfs -put -f "{ARCHIVO_LOCAL}" {RUTA_INPUT_HDFS}', shell=True)
+def verificar_origen_datos():
+
+    if ARCHIVO_INPUT.startswith("s3://"):
+        print(f"--- MODO NUBE DETECTADO ---")
+        print(f"Fuente de datos: {ARCHIVO_INPUT}")
+        print("Omitiendo carga manual (los datos ya estan en S3).")
+    else:
+        print(f"--- MODO LOCAL ---")
+        if os.path.exists(ARCHIVO_INPUT):
+            print(f"Usando archivo local: {ARCHIVO_INPUT}")
+        else:
+            print(f"Advertencia: No encuentro el archivo local: {ARCHIVO_INPUT}")
 
 if __name__ == '__main__':
     args = sys.argv
     es_worker = any(arg.startswith('--') for arg in args)
-
+    
     if not es_worker:
-        if os.path.exists(ARCHIVO_LOCAL):
-            cargar_datos_a_hdfs()
-        else:
-            print(f"⚠️ ADVERTENCIA: No encuentro el archivo en: {ARCHIVO_LOCAL}")
+        verificar_origen_datos()
 
     AnalisisAccidentes.run()
