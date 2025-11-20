@@ -2,7 +2,6 @@ import sys
 import shlex
 import os
 
-# Parche de compatibilidad para Python 3.12+ y 3.13+
 try:
     import setuptools
 except ImportError:
@@ -12,13 +11,9 @@ if sys.version_info >= (3, 13):
     sys.modules['pipes'] = shlex
 
 from mrjob.job import MRJob
-from mrjob.step import MRStep
 import csv
-import subprocess
 
-
-ARCHIVO_INPUT = 's3://trabajo-tres-mapreduce/data/Accidentalidad_Municipio_de__Envigado_20251119.csv'
-RUTA_OUTPUT_S3 = 's3://trabajo-tres-mapreduce/output'
+ARCHIVO_INPUT = 's3://proyecto-3-top-telematica/data/Accidentalidad_Envigado.csv'
 
 class AnalisisAccidentes(MRJob):
 
@@ -30,17 +25,19 @@ class AnalisisAccidentes(MRJob):
             row = next(csv.reader([line]))
             
             if len(row) >= 15:
+                # Asegúrate de tener estas 5 variables definidas
                 dia = row[3].strip().upper()
                 gravedad = row[10].strip().upper()
+                clase = row[11].strip().upper()
+                causa = row[12].strip().upper()
                 barrio = row[14].strip().upper()
 
-                if dia: 
-                    yield f"DIA_{dia}", 1
-                if gravedad: 
-                    yield f"GRAVEDAD_{gravedad}", 1
-                if barrio and barrio != "SIN BARRIO": 
-                    yield f"BARRIO_{barrio}", 1
-                    
+                # Y asegúrate de tener estos 5 yields
+                if dia: yield f"DIA_{dia}", 1
+                if gravedad: yield f"GRAVEDAD_{gravedad}", 1
+                if clase: yield f"CLASE_{clase}", 1
+                if causa: yield f"CAUSA_{causa}", 1
+                if barrio and barrio != "SIN BARRIO": yield f"BARRIO_{barrio}", 1
                     
         except Exception:
             pass
@@ -48,24 +45,5 @@ class AnalisisAccidentes(MRJob):
     def reducer(self, key, values):
         yield key, sum(values)
 
-def verificar_origen_datos():
-
-    if ARCHIVO_INPUT.startswith("s3://"):
-        print(f"--- MODO NUBE DETECTADO ---")
-        print(f"Fuente de datos: {ARCHIVO_INPUT}")
-        print("Omitiendo carga manual (los datos ya estan en S3).")
-    else:
-        print(f"--- MODO LOCAL ---")
-        if os.path.exists(ARCHIVO_INPUT):
-            print(f"Usando archivo local: {ARCHIVO_INPUT}")
-        else:
-            print(f"Advertencia: No encuentro el archivo local: {ARCHIVO_INPUT}")
-
 if __name__ == '__main__':
-    args = sys.argv
-    es_worker = any(arg.startswith('--') for arg in args)
-    
-    if not es_worker:
-        verificar_origen_datos()
-
     AnalisisAccidentes.run()
