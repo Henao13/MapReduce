@@ -35,12 +35,16 @@ class AnalisisAccidentes(MRJob):
             row = next(csv.reader([line]))
 
             if len(row) >= 15:
-                dia = row[3].strip().upper()       # Col 3: DIA
-                gravedad = row[10].strip().upper() # Col 10: GRAVEDAD
-                barrio = row[14].strip().upper()   # Col 14: BARRIO
+                dia = row[3].strip().upper()         # Col 3: DIA
+                gravedad = row[10].strip().upper()   # Col 10: GRAVEDAD
+                clase_accidente = row[11].strip().upper()  # Col 11: CLASE DE ACCIDENTE
+                causa = row[12].strip().upper()      # Col 12: CAUSA
+                barrio = row[14].strip().upper()     # Col 14: BARRIO
 
                 if dia: yield f"DIA_{dia}", 1
                 if gravedad: yield f"GRAVEDAD_{gravedad}", 1
+                if clase_accidente: yield f"CLASE_{clase_accidente}", 1
+                if causa: yield f"CAUSA_{causa}", 1
                 if barrio and barrio != "SIN BARRIO": yield f"BARRIO_{barrio}", 1
 
         except Exception:
@@ -64,6 +68,6 @@ if __name__ == '__main__':
         if os.path.exists(ARCHIVO_LOCAL):
             cargar_datos_a_hdfs()
         else:
-            print(f"⚠️ ADVERTENCIA: No encuentro el archivo en: {ARCHIVO_LOCAL}")
+            print(f"ADVERTENCIA: No encuentro el archivo en: {ARCHIVO_LOCAL}")
 
     AnalisisAccidentes.run()
